@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>注册</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="glass-box register-box">
+  <h2>注册</h2>
+  <input type="text" id="user" placeholder="账号（至少3位）">
+  <input type="password" id="pwd" placeholder="密码（至少6位）">
+  <button onclick="register()">注册</button>
+  <p class="link-text">已有账号？<span onclick="location.href='index.html'">去登录</span></p>
+</div>
+
+<script>
+const DB = "https://chat-room-18a1c-default-rtdb.asia-southeast1.firebasedatabase.app/";
+
+async function register() {
+  let u = document.getElementById("user").value.trim();
+  let p = document.getElementById("pwd").value.trim();
+
+  // 1. 格式验证
+  if (u.length < 3) {
+    alert("账号长度至少 3 位");
+    return;
+  }
+  if (p.length < 6) {
+    alert("密码长度至少 6 位");
+    return;
+  }
+
+  // 2. 读取已有用户，判断是否重复
+  let res = await fetch(DB + "users.json");
+  let data = await res.json();
+
+  if (data) {
+    for (let k in data) {
+      if (data[k].user === u) {
+        alert("账号已存在，请换一个");
+        return;
+      }
+    }
+  }
+
+  // 3. 注册
+  await fetch(DB + "users.json", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user: u,
+      pwd: p,
+      role: "user",
+      ban: 0
+    })
+  });
+
+  alert("注册成功！请登录");
+  location.href = "index.html";
+}
+</script>
+</body>
+</html>
