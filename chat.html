@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聊天室</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="noticeModal" class="modal">
+  <div class="modal-glass">
+    <h3>📢 公告</h3>
+    <div id="noticeText" class="notice-content">
+      欢迎来到我们的专属聊天室<br><br>
+      这里只属于我们，好好聊天，好好相爱。<br>
+      不吵架、不冷战、一直一直在一起。<br><br>
+      请滑动到最下方，再进入聊天室。
+    </div>
+    <div class="love-text" id="loveTime"></div>
+    <button id="agreeBtn" disabled>我已阅读并同意</button>
+  </div>
+</div>
+
+<div id="chatWrapper" style="display:none;">
+  <div class="chat-header">
+    <span>我们的小天地</span>
+    <span>在线：<span id="onlineNum">0</span></span>
+    <div>
+      <button onclick="logout()">退出</button>
+      <button id="adminBtn" onclick="location.href='admin.html'">管理</button>
+    </div>
+  </div>
+
+  <div id="msgBox" class="msg-box"></div>
+
+  <div class="input-bar">
+    <input type="file" id="filePic" accept="image/*" style="display:none">
+    <button onclick="filePic.click()">📷</button>
+    <input id="inputMsg" placeholder="输入消息...">
+    <button onclick="sendMsg()">发送</button>
+  </div>
+</div>
+
+<script>
+const USER_DB  = "https://chat-room-18a1c-default-rtdb.asia-southeast1.firebasedatabase.app/";
+const CHAT_DB = "https://chat-room-18a1c-40001-default-rtdb.asia-southeast1.firebasedatabase.app/";
+let me;
+
+window.onload = async () => {
+  let local = localStorage.getItem("currentUser");
+  if (!local) return location = "index.html";
+  me = JSON.parse(local);
+
+  let ur = await fetch(USER_DB + "users.json");
+  let us = await ur.json();
+  let exist = false;
+  for (let k in us) {
+    if (us[k].user == me.user) {
+      exist = true;
+      if (us[k].ban == 1) {
+        alert("你已被禁言");
+        localStorage.clear();
+        location = "index.html";
+        return;
+      }
+      break;
+    }
+  }
+  if (!exist) {
+    alert("账号已被删除");
+    localStorage.clear();
+    location = "index.html";
+    return;
+  }
+
+  if (me.role === "admin") {
+    document.getElementById("adminBtn").style.display = "inline-block";
+  }
+
+  // 恋爱计时
+  function updateLove() {
+    let s = new Date("2024-10-08");
+    let now = new Date();
+    let ms = now - s;
+    let day = Math.floor(ms / 86400000);
+    let h = Math.floor((ms % 86400000) / 3600000);
+    let m = Math.floor((ms % 3600000) / 60000);
+    document.getElementById("loveTime").innerText = `相爱 ${day}天 ${h}时 ${m}分`;
+  }
+  updateLove();
+  setInterval(updateLove, 60000);
+
+  // 公告滑动
+  let el = document.getElementById("noticeText");
+  let btn = document.getElementById("agreeBtn");
+  el.onscroll = () => {
+    if (el.scrollHeight - el.scrollTop <= el.clientHeight + 10) {
+      btn.disabled = false;
+    }
+  };
+
+  btn.onclick = () => {
+    document.getElementById("noticeModal").style.display = "none";
+    document.getElementById("chatWrapper").style.display = "flex";
+    startChat();
+  };
+};
+
+function startChat() {
+  loadMsg();
+  showOnline();
+  onlineHeart();
+  setInterval(loadMsg, 1500);
+  setInterval(showOnline, 3000);
+  setInterval(onlineHeart, 30000);
+}
+
+function onlineHeart() {
+  fetch(CHAT_DB + "online/" + me.user + ".json", { method: "PUT", body: Date.now() });
+}
+
+async function showOnline() {
+  let r = await fetch(CHAT_DB + "online.json");
+  let d = await r.json();
+  if (!d) { document.getElementById("onlineNum").innerText = 0; return; }
+  let c = 0;
+  for (let k in d) if (d[k] > Date.now() - 120000) c++;
+  document.getElementById("onlineNum").innerText = c;
+}
+
+async function loadMsg() {
+  let r = await fetch(CHAT_DB + "messages.json");
+  let d = await r.json();
+  let box = document.getElementById("msgBox");
+  box.innerHTML = "";
+  if (!d) return;
+  let arr = [];
+  for (let id in d) arr.push({ id, ...d[id] });
+  arr.sort((a,b)=>a.timeSort - b.timeSort);
+  arr.forEach(m => {
+    let div = document.createElement("div");
+    div.className = "msg-item";
+    let html = `<div><b>${m.user}</b> <small>${m.time}</small></div>`;
+    if (m.img) html += `<img src="${m.img}" class="msg-img">`;
+    else html += `<div>${m.text}</div>`;
+    if (me.role === "admin") {
+      html += `<button class="delBtn" onclick="delMsg('${m.id}')">删除</button>`;
+    }
+    div.innerHTML = html;
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+async function delMsg(id) {
+  if (!confirm("删除这条消息？")) return;
+  await fetch(CHAT_DB + "messages/" + id + ".json", { method: "DELETE" });
+  loadMsg();
+}
+
+async function sendMsg() {
+  let t = document.getElementById("inputMsg").value.trim();
+  if (!t) return;
+  await fetch(CHAT_DB + "messages.json", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user: me.user, text: t, time: new Date().toLocaleString(), timeSort: Date.now() })
+  });
+  document.getElementById("inputMsg").value = "";
+  loadMsg();
+}
+
+document.getElementById("filePic").onchange = e => {
+  let f = e.target.files[0];
+  if (!f) return;
+  if (f.size > 3*1024*1024) return alert("图片≤3MB");
+  let reader = new FileReader();
+  reader.onload = async () => {
+    await fetch(CHAT_DB + "messages.json", {
+      method: "POST",
+      body: JSON.stringify({ user: me.user, img: reader.result, time: new Date().toLocaleString(), timeSort: Date.now() })
+    });
+    loadMsg();
+  };
+  reader.readAsDataURL(f);
+  e.target.value = "";
+};
+
+function logout() {
+  localStorage.clear();
+  location = "index.html";
+}
+</script>
+</body>
+</html>
