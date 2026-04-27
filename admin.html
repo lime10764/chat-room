@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理员后台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="admin-container">
+  <h1>管理员后台</h1>
+
+  <div class="section">
+    <h3>聊天记录管理</h3>
+    <button onclick="clearAllMessages()" class="danger">一键清空所有聊天记录</button>
+  </div>
+
+  <div class="section">
+    <h3>用户管理</h3>
+    <button onclick="clearAllUsers()" class="danger">一键清空所有用户（保留admin）</button>
+  </div>
+
+  <br>
+  <button onclick="location.href='chat.html'">返回聊天室</button>
+</div>
+
+<script>
+// 账号数据库（不变）
+const USER_DB = "https://chat-room-18a1c-default-rtdb.asia-southeast1.firebasedatabase.app/";
+
+// 你新的聊天数据库（关键！）
+const CHAT_DB = "https://chat-room-18a1c-40001-default-rtdb.asia-southeast1.firebasedatabase.app/";
+
+// 清空聊天记录
+function clearAllMessages() {
+  if (!confirm("确定要清空所有聊天记录吗？此操作不可恢复！")) return;
+
+  fetch(CHAT_DB + "messages.json", {
+    method: "DELETE"
+  })
+  .then(res => {
+    alert("已清空所有聊天记录！");
+    location.reload();
+  })
+  .catch(err => {
+    alert("清空失败：" + err);
+  });
+}
+
+// 清空用户（保留admin）
+function clearAllUsers() {
+  if (!confirm("确定清空所有用户？仅保留管理员 admin！")) return;
+
+  fetch(USER_DB + "users.json")
+  .then(res => res.json())
+  .then(users => {
+    for (let id in users) {
+      if (users[id].user === "admin") continue;
+      fetch(USER_DB + "users/" + id + ".json", { method: "DELETE" });
+    }
+    alert("已清空普通用户！");
+  });
+}
+</script>
+</body>
+</html>
