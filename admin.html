@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>管理后台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="box">
+  <h2>管理后台</h2>
+
+  <h3>📢 修改公告</h3>
+  <textarea id="noticeContent" rows="5"></textarea>
+  <button onclick="saveNotice()">保存公告</button>
+
+  <h3>🏠 修改房间标题</h3>
+  <input id="roomName" placeholder="输入房间名">
+  <button onclick="saveRoomName()">修改</button>
+
+  <h3>👥 用户管理</h3>
+  <div id="userList"></div>
+
+  <br>
+  <button onclick="location='chat.html'">返回聊天室</button>
+</div>
+
+<script>
+const UDB = "https://chat-room-18a1c-default-rtdb.asia-southeast1.firebasedatabase.app/";
+const CDB = "https://chat-room-18a1c-40001-default-rtdb.asia-southeast1.firebasedatabase.app/";
+
+window.onload = async () => {
+  loadNotice();
+  loadRoomName();
+  loadUserList();
+};
+
+// 公告
+async function loadNotice(){
+  let r = await fetch(CDB + "notice.json");
+  let d = await r.json();
+  document.getElementById("noticeContent").value = d?.content || "";
+}
+async function saveNotice(){
+  let v = document.getElementById("noticeContent").value;
+  await fetch(CDB + "notice.json", {
+    method:"PUT",
+    body:JSON.stringify({ content: v })
+  });
+  alert("公告已保存");
+}
+
+// 房间名
+async function loadRoomName(){
+  let r = await fetch(CDB + "room.json");
+  let d = await r.json();
+  document.getElementById("roomName").value = d?.name || "";
+}
+async function saveRoomName(){
+  let v = document.getElementById("roomName").value;
+  await fetch(CDB + "room.json", {
+    method:"PUT",
+    body:JSON.stringify({ name: v })
+  });
+  alert("已修改");
+}
+
+// 用户列表
+async function loadUserList(){
+  let r = await fetch(UDB + "users.json");
+  let d = await r.json();
+  let box = document.getElementById("userList");
+  box.innerHTML = "";
+  for(let id in d){
+    let u = d[id];
+    let div = document.createElement("div");
+    div.className = "user-item";
+    div.innerHTML = `
+      ${u.user} ${u.role=="admin"?"[管理员]":""} ${u.ban==1?"[禁言]":""}
+      <div>
+        <button onclick="delUser('${id}')">删除用户</button>
+        <button onclick="setBan('${id}',${u.ban==1?0:1})">
+          ${u.ban==1?"解除禁言":"禁言"}
+        </button>
+      </div>
+    `;
+    box.appendChild(div);
+  }
+}
+
+async function delUser(id){
+  if(!confirm("确定删除此用户？")) return;
+  await fetch(UDB + "users/"+id+".json", { method:"DELETE" });
+  loadUserList();
+}
+
+async function setBan(id, val){
+  await fetch(UDB + "users/"+id+"/ban.json", {
+    method:"PUT",
+    body:val
+  });
+  loadUserList();
+}
+</script>
+</body>
+</html>
