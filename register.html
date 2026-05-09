@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>注册</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="noticeModal" class="modal">
+  <div class="modal-glass">
+    <h3>系统公告</h3>
+    <div id="noticeText" class="notice-content">加载中...</div>
+    <button onclick="closeNotice()">我已阅读</button>
+  </div>
+</div>
+
+<div class="glass-box register-box">
+  <h2>注册</h2>
+  <input type="text" id="user" placeholder="账号（至少3位）">
+  <input type="password" id="pwd" placeholder="密码（至少6位）">
+  <button onclick="register()">注册</button>
+  <p class="link-text">已有账号？<span onclick="location.href='index.html'">去登录</span></p>
+</div>
+
+<script>
+const DB = "https://chat-room-18a1c-default-rtdb.asia-southeast1.firebasedatabase.app/";
+const CDB = "https://chat-room-18a1c-40001-default-rtdb.asia-southeast1.firebasedatabase.app/";
+
+window.onload = async () => {
+  let res = await fetch(CDB + "notice.json");
+  let data = await res.json();
+  document.getElementById("noticeText").innerText = data?.content || "暂无公告";
+};
+
+function closeNotice() {
+  document.getElementById("noticeModal").style.display = "none";
+}
+
+async function register() {
+  let u = document.getElementById("user").value.trim();
+  let p = document.getElementById("pwd").value.trim();
+  if (u.length < 3) return alert("账号至少3位");
+  if (p.length < 6) return alert("密码至少6位");
+  if (u === "WMJ") return alert("该账号不可注册");
+
+  let res = await fetch(DB + "users.json");
+  let data = await res.json();
+  if (data) {
+    for (let k in data) {
+      if (data[k].user === u) {
+        alert("账号已存在");
+        return;
+      }
+    }
+  }
+
+  await fetch(DB + "users.json", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user: u, pwd: p, role: "user", ban: 0 })
+  });
+  alert("注册成功！请登录");
+  location.href = "index.html";
+}
+</script>
+</body>
+</html>
